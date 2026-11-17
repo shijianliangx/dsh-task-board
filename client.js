@@ -27,6 +27,22 @@ window.__ModuleLoader__.load({
       total: 'Tasks',
       working: 'In progress',
       done: 'Done',
+      archived: 'Archived',
+      tabActive: 'Active',
+      tabDone: 'Done',
+      tabArchived: 'Archived',
+      sessionDemand: 'User request from session',
+      preview: 'Preview',
+      previewLoading: 'Loading preview…',
+      previewMissing: 'Artifact file not found — it may have been moved, or the path is relative to another directory.',
+      previewUnsupported: 'This file type cannot be previewed here. Open it locally instead.',
+      previewTooLarge: 'File is too large to preview.',
+      close: 'Close',
+      emptyDir: 'Empty folder.',
+      openUrl: 'Open link',
+      emptyActive: 'No active task boards.',
+      emptyDone: 'No completed task boards.',
+      emptyArchived: 'No archived task boards. When a session is archived, its tasks move here.',
       requirement: 'Requirement',
       processing: 'Processing checklist',
       delivery: 'Delivery checklist',
@@ -60,7 +76,23 @@ window.__ModuleLoader__.load({
       total: '任务',
       working: '进行中',
       done: '已完成',
-      requirement: '需求',
+      archived: '已归档',
+      tabActive: '进行中',
+      tabDone: '已完成',
+      tabArchived: '归档',
+      sessionDemand: '会话中的用户需求',
+      preview: '预览',
+      previewLoading: '正在加载预览…',
+      previewMissing: '找不到产物文件——可能已被移动，或路径相对于其他目录。',
+      previewUnsupported: '该文件类型暂不支持在此预览，请在本地打开。',
+      previewTooLarge: '文件过大，无法预览。',
+      close: '关闭',
+      emptyDir: '（空目录）',
+      openUrl: '打开链接',
+      emptyActive: '没有进行中的任务。',
+      emptyDone: '没有已完成的任务。',
+      emptyArchived: '没有归档的任务。会话归档后，其任务会自动移到这里。',
+      requirement: '需求（智能体整理）',
       processing: '处理清单',
       delivery: '交付清单',
       noItems: '（暂无条目）',
@@ -95,6 +127,13 @@ window.__ModuleLoader__.load({
       'color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}',
       '.dtb-btn:hover{border-color:var(--dsw-alias-brand-primary)}',
       '.dtb-btn:disabled{opacity:.55;cursor:default}',
+      '.dtb-tabs{display:flex;gap:4px;padding:3px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-1);width:fit-content}',
+      '.dtb-tab{border:0;border-radius:7px;padding:6px 14px;background:transparent;color:var(--dsw-alias-label-secondary);',
+      'font:inherit;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap}',
+      '.dtb-tab:hover{background:var(--dsw-alias-bg-layer-2)}',
+      '.dtb-tab[data-active="true"]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);font-weight:600}',
+      '.dtb-tab i{font-style:normal;font-size:10px;padding:1px 6px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary)}',
+      '.dtb-tab[data-active="true"] i{background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-primary-inverted, #fff)}',
       '.dtb-stats{display:flex;gap:10px;flex-wrap:wrap}',
       '.dtb-stat{display:flex;flex-direction:column;gap:2px;padding:8px 14px;border:1px solid var(--dsw-alias-border-l1);',
       'border-radius:10px;background:var(--dsw-alias-bg-layer-1);min-width:82px}',
@@ -110,12 +149,17 @@ window.__ModuleLoader__.load({
       '.dtb-badge[data-s="doing"],.dtb-badge[data-s="working"]{background:var(--dsw-alias-brand-primary);color:var(--dsw-alias-label-primary-inverted, #fff)}',
       '.dtb-badge[data-s="done"]{background:var(--dsw-alias-state-success-primary);color:var(--dsw-alias-label-primary-inverted, #fff)}',
       '.dtb-badge[data-s="blocked"]{background:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-label-primary-inverted, #fff)}',
+      '.dtb-badge[data-s="archived"]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);border:1px dashed var(--dsw-alias-border-l1)}',
+      '.dtb-card[data-archived="true"]{opacity:.82}',
       '.dtb-bar{width:88px;height:5px;border-radius:99px;background:var(--dsw-alias-bg-layer-2);overflow:hidden;flex:none}',
       '.dtb-bar i{display:block;height:100%;background:var(--dsw-alias-brand-primary)}',
       '.dtb-meta{font-size:11px;color:var(--dsw-alias-label-secondary);white-space:nowrap}',
       '.dtb-body{border-top:1px solid var(--dsw-alias-border-l1);padding:14px 16px 18px;display:flex;flex-direction:column;gap:14px}',
       '.dtb-req{font-size:12px;line-height:1.65;color:var(--dsw-alias-label-secondary);white-space:pre-wrap;word-break:break-word;',
       'padding:10px 12px;border-radius:9px;background:var(--dsw-alias-bg-layer-2)}',
+      '.dtb-demand{font-size:12px;line-height:1.65;color:var(--dsw-alias-label-primary);white-space:pre-wrap;word-break:break-word;',
+      'padding:10px 12px;border-radius:9px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1)}',
+      '.dtb-demand b{display:block;margin-bottom:3px;font-size:11px;color:var(--dsw-alias-brand-primary)}',
       '.dtb-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}',
       '@media (max-width:820px){.dtb-cols{grid-template-columns:1fr}}',
       '.dtb-sec{min-width:0}',
@@ -133,6 +177,29 @@ window.__ModuleLoader__.load({
       '.dtb-field{margin-top:6px;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary);white-space:pre-wrap;word-break:break-word}',
       '.dtb-field b{color:var(--dsw-alias-label-primary);font-weight:600}',
       '.dtb-artifact{margin-top:6px;font-size:11px;line-height:1.5;word-break:break-all;color:var(--dsw-alias-brand-primary)}',
+      '.dtb-artifact-btn{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:0;border:0;background:none;',
+      'font:inherit;font-size:11px;line-height:1.5;word-break:break-all;text-align:left;cursor:pointer;color:var(--dsw-alias-brand-primary);',
+      'text-decoration:underline;text-underline-offset:2px}',
+      '.dtb-artifact-btn:hover{opacity:.75}',
+      '.dtb-overlay{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;',
+      'background:rgba(0,0,0,.45);padding:24px}',
+      '.dtb-modal{display:flex;flex-direction:column;width:100%;max-width:920px;max-height:85vh;border-radius:14px;overflow:hidden;',
+      'background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);box-shadow:0 18px 50px rgba(0,0,0,.25)}',
+      '.dtb-modal-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--dsw-alias-border-l1)}',
+      '.dtb-modal-title{flex:1;min-width:0}',
+      '.dtb-modal-title b{display:block;font-size:13px;font-weight:600;word-break:break-all}',
+      '.dtb-modal-title span{display:block;margin-top:2px;font-size:11px;color:var(--dsw-alias-label-secondary);word-break:break-all}',
+      '.dtb-modal-body{flex:1;min-height:0;overflow:auto;background:var(--dsw-alias-bg-layer-2)}',
+      '.dtb-modal-body img{display:block;max-width:100%;margin:0 auto}',
+      '.dtb-modal-body iframe{display:block;width:100%;height:100%;min-height:62vh;border:0}',
+      '.dtb-modal-body pre{margin:0;padding:16px;font:12px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;',
+      'white-space:pre-wrap;word-break:break-word;color:var(--dsw-alias-label-primary)}',
+      '.dtb-modal-note{padding:48px 24px;text-align:center;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1.7}',
+      '.dtb-dirlist{display:flex;flex-direction:column}',
+      '.dtb-dirlist button{display:flex;align-items:center;gap:8px;padding:9px 16px;border:0;border-bottom:1px solid var(--dsw-alias-border-l1);',
+      'background:none;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;text-align:left;word-break:break-all}',
+      '.dtb-dirlist button:hover{background:var(--dsw-alias-bg-layer-2)}',
+      '.dtb-dirlist .dtb-dir{color:var(--dsw-alias-brand-primary)}',
       '.dtb-empty{color:var(--dsw-alias-label-secondary);font-size:12px;padding:14px 0;text-align:center}',
       '.dtb-error{color:var(--dsw-alias-state-error-primary);font-size:12px;padding:10px 12px;border-radius:9px;background:var(--dsw-alias-bg-layer-1)}',
     ].join('')
@@ -202,11 +269,12 @@ window.__ModuleLoader__.load({
         blocked: t('blocked'),
         planning: t('planning'),
         working: t('workingBoard'),
+        archived: t('archived'),
       }
       return map[status] || status || ''
     }
 
-    function Item({ item, t, kind }) {
+    function Item({ item, t, kind, onPreview }) {
       return h(
         'div',
         { className: 'dtb-item' },
@@ -224,11 +292,24 @@ window.__ModuleLoader__.load({
           ? h('div', { className: 'dtb-field' }, h('b', null, `${kind === 'processing' ? t('detail') : t('spec')}：`), item.detail)
           : null,
         item.result ? h('div', { className: 'dtb-field' }, h('b', null, `${t('result')}：`), item.result) : null,
-        item.artifact ? h('div', { className: 'dtb-artifact' }, `${t('artifact')}：${item.artifact}`) : null,
+        item.artifact
+          ? h(
+              'button',
+              {
+                className: 'dtb-artifact-btn',
+                title: t('preview'),
+                onClick: (event) => {
+                  event.stopPropagation()
+                  if (onPreview) onPreview(item.artifact)
+                },
+              },
+              `${t('artifact')}：${item.artifact}`,
+            )
+          : null,
       )
     }
 
-    function Section({ title, items, t, kind }) {
+    function Section({ title, items, t, kind, onPreview }) {
       return h(
         'div',
         { className: 'dtb-sec' },
@@ -237,26 +318,34 @@ window.__ModuleLoader__.load({
           ? h(
               'div',
               { className: 'dtb-items' },
-              items.map((item) => h(Item, { key: item.id || item.title, item, t, kind })),
+              items.map((item) => h(Item, { key: item.id || item.title, item, t, kind, onPreview })),
             )
           : h('div', { className: 'dtb-empty' }, t('noItems')),
       )
     }
 
-    function BoardCard({ board, t }) {
+    function BoardCard({ board, t, onPreview }) {
       const [open, setOpen] = useState(true)
+      const previewOf = useCallback(
+        (artifactText) => {
+          if (onPreview) onPreview(artifactText, board)
+        },
+        [onPreview, board],
+      )
       const p = board.progress || { total: 0, done: 0, percent: 0 }
       const updated = board.updatedAt
         ? new Date(board.updatedAt).toLocaleString()
         : ''
       return h(
         'div',
-        { className: 'dtb-card' },
+        { className: 'dtb-card', 'data-archived': board.archived ? 'true' : 'false' },
         h(
           'div',
           { className: 'dtb-card-head', onClick: () => setOpen((v) => !v) },
           h('span', { className: 'dtb-card-title' }, board.title),
-          h('span', { className: 'dtb-badge', 'data-s': board.status }, statusText(t, board.status)),
+          board.archived
+            ? h('span', { className: 'dtb-badge', 'data-s': 'archived' }, t('archived'))
+            : h('span', { className: 'dtb-badge', 'data-s': board.status }, statusText(t, board.status)),
           h(
             'span',
             { className: 'dtb-bar', title: `${t('progress')} ${p.percent}%` },
@@ -270,17 +359,90 @@ window.__ModuleLoader__.load({
           ? h(
               'div',
               { className: 'dtb-body' },
+              board.sessionDemand
+                ? h('div', { className: 'dtb-demand' }, h('b', null, t('sessionDemand')), board.sessionDemand)
+                : null,
               board.requirement
                 ? h('div', { className: 'dtb-req' }, h('b', null, `${t('requirement')}：`), board.requirement)
                 : null,
               h(
                 'div',
                 { className: 'dtb-cols' },
-                h(Section, { title: t('processing'), items: board.processing || [], t, kind: 'processing' }),
-                h(Section, { title: t('delivery'), items: board.delivery || [], t, kind: 'delivery' }),
+                h(Section, { title: t('processing'), items: board.processing || [], t, kind: 'processing', onPreview: previewOf }),
+                h(Section, { title: t('delivery'), items: board.delivery || [], t, kind: 'delivery', onPreview: previewOf }),
               ),
             )
           : null,
+      )
+    }
+
+    function PreviewModal({ preview, t, onClose, onOpenPath }) {
+      useEffect(() => {
+        const onKey = (event) => {
+          if (event.key === 'Escape') onClose()
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+      }, [onClose])
+      const r = preview.result
+      const fileUrl = r && r.path && (r.kind === 'image' || r.kind === 'pdf')
+        ? `${API}/artifact-file?path=${encodeURIComponent(r.path)}`
+        : ''
+      let body = null
+      if (preview.loading) {
+        body = h('div', { className: 'dtb-modal-note' }, t('previewLoading'))
+      } else if (preview.error) {
+        body = h('div', { className: 'dtb-modal-note' }, preview.error)
+      } else if (r.kind === 'image') {
+        body = h('img', { src: fileUrl, alt: r.name || '' })
+      } else if (r.kind === 'pdf') {
+        body = h('iframe', { src: fileUrl, title: r.name || t('preview') })
+      } else if (r.kind === 'text') {
+        body = h('pre', null, r.text || '')
+      } else if (r.kind === 'dir') {
+        body = r.files && r.files.length
+          ? h(
+              'div',
+              { className: 'dtb-dirlist' },
+              r.files.map((f) =>
+                h(
+                  'button',
+                  { key: f.name, onClick: () => onOpenPath(`${r.path}/${f.name}`) },
+                  h('span', { className: f.isDir ? 'dtb-dir' : null }, f.isDir ? '[dir] ' : ''),
+                  f.name,
+                ),
+              ),
+            )
+          : h('div', { className: 'dtb-modal-note' }, t('emptyDir'))
+      } else if (r.kind === 'missing') {
+        body = h('div', { className: 'dtb-modal-note' }, t('previewMissing'))
+      } else if (r.kind === 'tooLarge') {
+        body = h('div', { className: 'dtb-modal-note' }, t('previewTooLarge'))
+      } else if (r.kind === 'url') {
+        body = h('div', { className: 'dtb-modal-note' },
+          h('button', { className: 'dtb-btn', onClick: () => { try { window.open(r.url, '_blank', 'noopener') } catch {} } }, t('openUrl')))
+      } else {
+        body = h('div', { className: 'dtb-modal-note' }, t('previewUnsupported'))
+      }
+      return h(
+        'div',
+        { className: 'dtb-overlay', onClick: onClose },
+        h(
+          'div',
+          { className: 'dtb-modal', onClick: (event) => event.stopPropagation() },
+          h(
+            'div',
+            { className: 'dtb-modal-head' },
+            h(
+              'div',
+              { className: 'dtb-modal-title' },
+              h('b', null, (r && r.name) || t('preview')),
+              r && (r.path || r.url) ? h('span', null, r.path || r.url) : null,
+            ),
+            h('button', { className: 'dtb-btn', onClick: onClose, 'aria-label': t('close') }, '✕'),
+          ),
+          h('div', { className: 'dtb-modal-body' }, body),
+        ),
       )
     }
 
@@ -289,7 +451,43 @@ window.__ModuleLoader__.load({
       const [state, setState] = useState(null)
       const [error, setError] = useState('')
       const [busy, setBusy] = useState(false)
+      const [tab, setTab] = useState('active')
+      const [preview, setPreview] = useState(null)
       const aliveRef = useRef(true)
+
+      const openPreview = useCallback(async (artifactText, board) => {
+        const first = String(artifactText || '').trim().split(/\r?\n/)[0] || ''
+        if (/^https?:\/\//i.test(first.trim())) {
+          try {
+            window.open(first.trim().split(/\s+/)[0], '_blank', 'noopener')
+          } catch {
+            /* 弹窗被拦截时落到弹层里给打开按钮 */
+          }
+          return
+        }
+        const boardId = board && board.id ? board.id : ''
+        setPreview({ loading: true, boardId })
+        try {
+          const result = await call('artifact', { path: artifactText, boardId })
+          if (result && result.kind === 'url' && result.url) {
+            try {
+              window.open(result.url, '_blank', 'noopener')
+              setPreview(null)
+              return
+            } catch {
+              /* 保留弹层降级 */
+            }
+          }
+          setPreview({ result, boardId })
+        } catch (caught) {
+          setPreview({ error: caught && caught.message ? caught.message : String(caught), boardId })
+        }
+      }, [])
+
+      const previewPath = useCallback(
+        (path, boardId) => openPreview(path, { id: boardId }),
+        [openPreview],
+      )
 
       const refresh = useCallback(async () => {
         try {
@@ -322,8 +520,21 @@ window.__ModuleLoader__.load({
         }
       }
 
-      const stats = state && state.stats ? state.stats : { total: 0, working: 0, done: 0 }
-      const boards = state && Array.isArray(state.boards) ? state.boards : []
+      const stats = state && state.stats ? state.stats : { total: 0, working: 0, done: 0, archived: 0 }
+      const allBoards = state && Array.isArray(state.boards) ? state.boards : []
+      const activeCount = allBoards.filter((b) => !b.archived && b.status !== 'done').length
+      const doneCount = allBoards.filter((b) => !b.archived && b.status === 'done').length
+      const archivedCount = allBoards.filter((b) => b.archived).length
+      const tabMeta = {
+        active: { count: activeCount, empty: t('emptyActive') },
+        done: { count: doneCount, empty: t('emptyDone') },
+        archived: { count: archivedCount, empty: t('emptyArchived') },
+      }
+      const boards = allBoards.filter((b) => {
+        if (tab === 'archived') return Boolean(b.archived)
+        if (b.archived) return false
+        return tab === 'done' ? b.status === 'done' : b.status !== 'done'
+      })
 
       return h(
         'div',
@@ -350,6 +561,24 @@ window.__ModuleLoader__.load({
             h('div', { className: 'dtb-stat' }, h('b', null, String(stats.total)), h('span', null, t('total'))),
             h('div', { className: 'dtb-stat' }, h('b', null, String(stats.working)), h('span', null, t('working'))),
             h('div', { className: 'dtb-stat' }, h('b', null, String(stats.done)), h('span', null, t('done'))),
+            h('div', { className: 'dtb-stat' }, h('b', null, String(stats.archived)), h('span', null, t('archived'))),
+          ),
+          h(
+            'div',
+            { className: 'dtb-tabs' },
+            ['active', 'done', 'archived'].map((key) =>
+              h(
+                'button',
+                {
+                  className: 'dtb-tab',
+                  'data-active': String(tab === key),
+                  key,
+                  onClick: () => setTab(key),
+                },
+                t(key === 'active' ? 'tabActive' : key === 'done' ? 'tabDone' : 'tabArchived'),
+                h('i', null, String(tabMeta[key].count)),
+              ),
+            ),
           ),
           error && !state
             ? h(
@@ -359,12 +588,20 @@ window.__ModuleLoader__.load({
                 h('button', { className: 'dtb-btn', onClick: manualRefresh }, t('retry')),
               )
             : !boards.length
-              ? h('div', { className: 'dtb-empty' }, state ? t('empty') : t('loading'))
+              ? h('div', { className: 'dtb-empty' }, state ? tabMeta[tab].empty : t('loading'))
               : h(
                   'div',
                   { className: 'dtb-list' },
-                  boards.map((board) => h(BoardCard, { key: board.id, board, t })),
+                  boards.map((board) => h(BoardCard, { key: board.id, board, t, onPreview })),
                 ),
+          preview
+            ? h(PreviewModal, {
+                preview,
+                t,
+                onClose: () => setPreview(null),
+                onOpenPath: (path) => previewPath(path, preview.boardId),
+              })
+            : null,
         ),
       )
     }
