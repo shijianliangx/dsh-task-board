@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Task Board",
+    "description": "After a task is dispatched, the agent auto-generates a processing checklist and a delivery checklist from the requirement, and keeps progress, results and artifacts up to date. Open the Task Board entry in the left sidebar.",
+    "detail": "README.md"
+  }
+}
