@@ -11,6 +11,12 @@
  *   不再只依赖智能体手填的 requirement（用户会话的需求未计入任务的问题）；
  * - 读取 ~/.dsh/storages/workspace.json 的 global.archivedSessionIds，
  *   按看板的 sessionId 判定归档，前端把归档任务单列一类（归档后仍显示进行中的问题）。
+ *
+ * v1.3 修复「记录延迟」：
+ * - 不再只靠系统提示词让模型自觉调用 task_board_plan（模型常常几十分钟都不调用）。
+ *   改为监听 agent/pre-step 等会话事件：会话一出现用户需求，插件就自动建草稿板，
+ *   标题取需求首句，原文写入 sessionDemand，处理/交付清单先留空。
+ * - 模型随后调用 task_board_plan 时，会复用同会话的草稿板填入清单，不重复建板。
  */
 
 import { randomUUID } from 'node:crypto';
@@ -253,6 +259,8 @@ export function apply(ctx, config = {}) {
   let storeReady = null;
   let disposed = false;
   let archivedSessions = new Set();
+  // v1.3：每个会话只自动建一次草稿板，避免 pre-step 多次触发重复建板。
+  const autoBoarded = new Set();
 
   const maxBoards = Number.isFinite(config.maxBoards) && config.maxBoards > 0 ? Math.floor(config.maxBoards) : 200;
   const archivePollMs = Number.isFinite(config.archivePollMs) && config.archivePollMs >= 1000 ? config.archivePollMs : 4000;
@@ -290,8 +298,13 @@ export function apply(ctx, config = {}) {
       try {
         for (const event of session.snapshotEvents(0)) {
           if (event && event.type === 'user/message') {
-            const t = textOf(event.data && event.data.content);
-            if (t && !t.startsWith('/')) texts.push(t);
+            let t = textOf(event.data && event.data.content)
+            if (!t) continue
+            // 丢掉注入的 system-reminder / 时间戳外壳，只留用户真正说的话
+            t = t.replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim()
+            if (!t || t.startsWith('/')) continue
+            if (/^Time sampled while preparing turn/m.test(t)) continue
+            texts.push(t)
           }
         }
       } catch {
@@ -328,6 +341,116 @@ export function apply(ctx, config = {}) {
     }
     if (demand.length > LIMITS.requirement) demand = `${demand.slice(0, LIMITS.requirement)}…`;
     return { sessionId, sessionDemand: demand, cwd };
+  }
+
+  /**
+   * v1.3 从用户原始需求里挑一个简短标题：取第一行有效文本，去掉常见前缀与 markdown 噪声。
+   */
+  function titleFromDemand(demand) {
+    const firstLine = String(demand || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line && !/^(time sampled|browser time zone|elapsed since)/i.test(line)) || '';
+    const clean = firstLine
+      .replace(/^<[^>]+>\s*/g, '')
+      .replace(/^[-*#>\d.\s]+/, '')
+      .replace(/[*_`]/g, '')
+      .trim();
+    if (!clean) return '新任务';
+    const short = clean.length > LIMITS.title ? `${clean.slice(0, LIMITS.title)}…` : clean;
+    return short;
+  }
+
+  /**
+   * v1.3 自动建草稿板：会话出现用户需求且该会话尚无关联看板时调用。
+   * 清单留空（等模型后续调用 update/add 填充），保证「需求一出现就可见」。
+   * 返回新建的 board，若已存在则复用现有 board。
+   */
+  async function ensureAutoBoard(exec) {
+    const session = exec && exec.agent && exec.agent.session;
+    const sessionId = session && typeof session.id === 'string' ? session.id : '';
+    const norm = normSid(sessionId);
+    if (!norm || autoBoarded.has(norm)) return null;
+    // 已有该会话的看板（包括手工建的）就登记并复用，不重复创建。
+    const existing = [...boards.values()].find((b) => normSid(b.sessionId) === norm);
+    if (existing) {
+      autoBoarded.add(norm);
+      return existing;
+    }
+    // 存储可能还在异步恢复中；建板前等它就绪，避免落盘丢失。
+    try { if (storeReady) await storeReady; } catch { /* 存储不可用也继续，至少内存可见 */ }
+    const captured = await captureSession(exec);
+    const demand = captured.sessionDemand;
+    if (!demand || !demand.trim()) return null; // 还没有有效用户需求，等下一次事件
+    autoBoarded.add(norm);
+    const board = {
+      id: randomUUID(),
+      title: titleFromDemand(demand),
+      requirement: '',
+      sessionDemand: demand,
+      status: 'planning',
+      processing: [],
+      delivery: [],
+      sessionId: captured.sessionId || sessionId,
+      cwd: captured.cwd || (typeof config.cwd === 'string' ? config.cwd.trim() : ''),
+      createdAt: now(),
+      updatedAt: now(),
+      auto: true,
+    };
+    boards.set(board.id, board);
+    while (boards.size > maxBoards) {
+      const oldest = [...boards.values()].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))[0];
+      if (!oldest) break;
+      boards.delete(oldest.id);
+      dropBoard(oldest.id);
+    }
+    saveBoard(board);
+    logger.info?.(`dsh-task-board: auto board created for session ${norm}`);
+    return board;
+  }
+
+  /**
+   * v1.3 安装会话事件钩子：pre-step 在每一轮 agent 开始时触发，session/created、
+   * session/event 作为兜底。参考本机 dsh-purge 插件：ctx.on 在热重载时可能挂不上，
+   * 用 late + microtask + 定时器三次重试；拿到的第一个参数即 agent（含 .session）。
+   */
+  function installAutoBoardHooks() {
+    if (typeof ctx.on !== 'function') return;
+    let installed = false;
+    let disposeHook = null;
+    const onEvent = (payload) => {
+      if (disposed) return;
+      // agent/pre-step 的 payload 是 agent（有 .session）；兜底事件给的是 session 本身。
+      const exec = payload && payload.session
+        ? { agent: payload }
+        : { agent: { session: payload } };
+      Promise.resolve(ensureAutoBoard(exec)).catch((error) => {
+        logger.warn?.(`dsh-task-board: auto board failed (${error?.message ?? error})`);
+      });
+    };
+    const install = () => {
+      if (installed || disposed) return;
+      try {
+        const d = ctx.on('agent/pre-step', onEvent, { global: true, prepend: true });
+        if (typeof d === 'function') {
+          disposeHook = d;
+          installed = true;
+        }
+      } catch {
+        /* 下一次重试 */
+      }
+    };
+    install();
+    if (!installed) queueMicrotask(install);
+    let retryTimer = null;
+    if (!installed) {
+      retryTimer = setTimeout(install, 1500);
+      if (retryTimer && typeof retryTimer.unref === 'function') retryTimer.unref();
+    }
+    ctx.effect(() => () => {
+      if (retryTimer) clearTimeout(retryTimer);
+      try { if (typeof disposeHook === 'function') disposeHook(); } catch { /* ignore */ }
+    });
   }
 
   /**
@@ -481,6 +604,7 @@ export function apply(ctx, config = {}) {
           cwd: typeof row.cwd === 'string' ? row.cwd : '',
           createdAt: Number(row.createdAt) || now(),
           updatedAt: Number(row.updatedAt) || now(),
+          auto: row.auto === true,
         });
       }
     } catch (error) {
@@ -528,6 +652,24 @@ export function apply(ctx, config = {}) {
       const title = str(input.title, LIMITS.title);
       if (!title) throw new Error('任务标题不能为空');
       const captured = await captureSession(exec);
+      const wantedSid = input.sessionId ? str(input.sessionId, 120) : captured.sessionId;
+      // v1.3：若本会话已被自动建过草稿板，模型再用 task_board_plan 建板时复用它，
+      // 用模型整理的标题/清单覆盖草稿，避免同一会话出现两块看板。
+      const draft = [...boards.values()].find(
+        (b) => b.auto && normSid(b.sessionId) && wantedSid && normSid(b.sessionId) === normSid(wantedSid),
+      );
+      if (draft) {
+        draft.title = title;
+        draft.auto = false;
+        draft.requirement = str(input.requirement, LIMITS.requirement, draft.requirement);
+        draft.sessionDemand = captured.sessionDemand || draft.sessionDemand || str(input.sessionDemand, LIMITS.requirement);
+        draft.processing = normalizeItems(input.processing, 'processing');
+        draft.delivery = normalizeItems(input.delivery, 'delivery');
+        draft.cwd = input.cwd ? str(input.cwd, 500) : (captured.cwd || draft.cwd);
+        draft.updatedAt = now();
+        saveBoard(draft);
+        return viewBoard(draft);
+      }
       const board = {
         id: randomUUID(),
         title,
@@ -555,7 +697,9 @@ export function apply(ctx, config = {}) {
     update(input) {
       const board = findBoard(input.boardId, input.title);
       if (!board) throw new Error('找不到对应的任务板');
-      const type = input.type === 'board' || input.type === 'task' ? 'board' : (TYPE_TO_ITEM[input.itemType || input.type] || '');
+      const type = input.type === 'board' || input.type === 'task' || input.itemType === 'board'
+        ? 'board'
+        : (TYPE_TO_ITEM[input.itemType || input.type] || '');
       if (!type) throw new Error('itemType 必须是 processing、delivery 或 board');
       if (type === 'board') {
         if (input.status !== undefined) board.status = clampStatus(input.status, STATUS_BOARD, board.status);
@@ -804,7 +948,14 @@ export function apply(ctx, config = {}) {
         all: { type: 'boolean', description: '为 true 时展示全部任务板' },
       },
     },
-    output: { schema: { type: 'object' }, render: boardResult },
+    output: {
+      schema: { type: 'object' },
+      // all / 空看板 时返回值是 { boards, markdown }，不能套 boardResult（否则标题渲染成 undefined）
+      render(_args, value) {
+        const markdown = value && typeof value.markdown === 'string' ? value.markdown.trim() : '';
+        return [{ type: 'text', text: markdown || renderBoardMarkdown(value, archivedSessions) }];
+      },
+    },
     execute(args) {
       if (args.all) {
         const list = sortedBoards();
@@ -814,6 +965,7 @@ export function apply(ctx, config = {}) {
           markdown: list.map((board) => renderBoardMarkdown(board, archivedSessions)).join('\n\n---\n\n'),
         });
       }
+      if (!boards.size) return Promise.resolve({ boards: [], markdown: '（还没有任务看板）' });
       return Promise.resolve(service.detail(args));
     },
   });
@@ -905,9 +1057,17 @@ export function apply(ctx, config = {}) {
     store = null;
   });
 
+  // v1.3：钩子和恢复并行安装。pre-step 事件可能在 restore 完成前到达，
+  // ensureAutoBoard 内部用 autoBoarded Set 去重，配合 restore 后的现有板检查。
+  installAutoBoardHooks();
   (async () => {
     await Promise.all([refreshArchived(), restore()]);
     if (disposed) return;
+    // 恢复完成后，把已存在看板的会话登记为「已处理」，防止 pre-step 再建重复板。
+    for (const board of boards.values()) {
+      const norm = normSid(board.sessionId);
+      if (norm) autoBoarded.add(norm);
+    }
     logger.info?.('dsh-task-board ready');
   })().catch((error) => {
     logger.warn?.(`dsh-task-board: init failed (${error?.message ?? error})`);
