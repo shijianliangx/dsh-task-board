@@ -14,7 +14,7 @@
 
 ## 功能
 
-- **自动生成**：收到明确需求/分发任务后，智能体调用 `task_board_plan`，按需求列出
+- **自动生成**（v1.3 起自动建板）：会话一出现用户需求，插件在第一步就自动建一块草稿板（标题取需求首句、原话写入「会话中的用户需求」），无需等待智能体调用工具——解决了早期"派活后几十分钟才记进看板"的延迟问题。随后智能体调用 `task_board_plan` 时会复用这块草稿板，填入：
   - 处理清单：要处理的事项、要点、负责人；
   - 交付清单：要交付的产物、交付标准。
 - **会话需求自动计入**（v1.1）：建板时插件从当前会话抓取用户原始消息（`exec.agent.session` 的 `user/message`；读不到则从会话投影缓存兜底），存为看板的「会话中的用户需求」单独展示，与智能体整理的 requirement 并列，避免用户原话丢失。
@@ -42,25 +42,39 @@ dsh-task-board/
 └── README.md
 ```
 
-## 安装（本机 DSH Desktop）
+## 安装
 
-**当前状态：已用 `link:` 方式装载，本目录就是源码目录，改完重启 DSH 即生效。**
+### 一行命令安装（推荐，开发者可直接复制）
 
-本机 DSH Desktop 的实际配置在 `F:\DeepSeekHarness\dsh-home\profiles\desktop`：
+用 DSH 自带的 `dsh plugin` 命令把本包装进目标 profile（`<包名>` 处已填好本仓库的 GitHub spec）：
 
-- `package.json` 依赖：`"@local/dsh-task-board": "link:D:/Personal/Documents/deepseek-harness/default-workspace/dsh-task-board"`
-- `dsh.profile.bundles` 含 `"@local/dsh-task-board"`
-- `node_modules/@local/dsh-task-board` 是指向本目录的 Windows Junction（与 notes-panel 的 symlink 等价）
-
-因此**开发/修改流程**：直接改本目录下 `index.js` / `client.js`，然后重启 DSH Desktop（client 在启动时装配），刷新页面即可，不需要重新安装、不需要复制文件。
-
-如果是全新安装，才需要执行：
-
-```text
-用 plugin_manager 的 install_bundle，target 指向 D:\Personal\Documents\deepseek-harness\default-workspace\dsh-task-board
+```bash
+dsh plugin --profile web add github:taozi0328/dsh-task-board
 ```
 
-或手工在 profile 的 `package.json` 里加上面的 `link:` 依赖与 bundle 项后重启。换版本时用 link 方式无需 `remove_bundle`；只有换成非 link 安装时才需要先移除。
+- `--profile web` 指定要装到哪个 profile；换成你自己的 profile 名即可（如 `--profile desktop`）。
+- `--profile` 必须写在 `add` **之前**，这是 DSH CLI 的要求。
+- 安装后**重启 DSH**，左侧栏出现「任务看板」即生效。
+
+从本地源码目录安装（改代码后重启即生效，适合开发调试）：
+
+```bash
+dsh plugin --profile web add link:D:/Personal/Documents/deepseek-harness/default-workspace/dsh-task-board
+```
+
+> 说明：`dsh plugin` 本质是把参数转发给 profile 目录里的 pnpm，所以 `add/remove/why` 等 pnpm 子命令都能用。卸载用 `dsh plugin --profile web remove @local/dsh-task-board`。
+
+### 本机 DSH Desktop 的当前状态
+
+当前这台机器已用 `link:` 方式装载，本目录就是源码目录，改完重启 DSH 即生效：
+
+- profile 配置在 `F:\DeepSeekHarness\dsh-home\profiles\desktop`：
+  - `package.json` 依赖：`"@local/dsh-task-board": "link:D:/Personal/Documents/deepseek-harness/default-workspace/dsh-task-board"`
+  - `dsh.profile.bundles` 含 `"@local/dsh-task-board"`
+  - `node_modules/@local/dsh-task-board` 是指向本目录的 Windows Junction（与 notes-panel 的 symlink 等价）
+- 因此**开发/修改流程**：直接改本目录下 `index.js` / `client.js`，然后重启 DSH Desktop（client 在启动时装配），刷新页面即可，不需要重新安装、不需要复制文件。
+
+换版本时用 link 方式无需先 `remove`；只有从 link 换成非 link（如 GitHub spec）安装时才需要先移除旧的。也可以在会话里让智能体用 `plugin_manager` 的 `install_bundle`，target 指向本目录。
 
 ## 使用方式（无需记命令）
 
