@@ -1,6 +1,6 @@
 {
   "name": "@local/dsh-task-board",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "After a task is dispatched, the agent auto-generates a processing checklist and a delivery checklist from the requirement, then tracks progress, results and artifacts in a sidebar panel.",
   "type": "module",

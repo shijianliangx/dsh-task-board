@@ -44,21 +44,23 @@ dsh-task-board/
 
 ## 安装（本机 DSH Desktop）
 
-本插件按本机已安装的 `@local/dsh-notes-panel` 同样的方式装载，用 `plugin_manager` 的 `install_bundle`：
+**当前状态：已用 `link:` 方式装载，本目录就是源码目录，改完重启 DSH 即生效。**
 
-1. 让当前 DSH 会话里的智能体执行（target 用本目录的绝对路径）：
+本机 DSH Desktop 的实际配置在 `F:\DeepSeekHarness\dsh-home\profiles\desktop`：
+
+- `package.json` 依赖：`"@local/dsh-task-board": "link:D:/Personal/Documents/deepseek-harness/default-workspace/dsh-task-board"`
+- `dsh.profile.bundles` 含 `"@local/dsh-task-board"`
+- `node_modules/@local/dsh-task-board` 是指向本目录的 Windows Junction（与 notes-panel 的 symlink 等价）
+
+因此**开发/修改流程**：直接改本目录下 `index.js` / `client.js`，然后重启 DSH Desktop（client 在启动时装配），刷新页面即可，不需要重新安装、不需要复制文件。
+
+如果是全新安装，才需要执行：
 
 ```text
 用 plugin_manager 的 install_bundle，target 指向 D:\Personal\Documents\deepseek-harness\default-workspace\dsh-task-board
 ```
 
-2. 刷新页面，左侧栏应出现「任务看板」入口；若没有，重启一次 DSH Desktop。
-
-> 也可以直接编辑 `~/.dsh/profiles/desktop/package.json`，在 `dependencies` 里加
-> `"@local/dsh-task-board": "link:D:/Personal/Documents/deepseek-harness/default-workspace/dsh-task-board"`，
-> 并在 `dsh.profile.bundles` 里加 `"@local/dsh-task-board"`，然后重启 DSH。
->
-> 换版本时先 `remove_bundle` 再 `install_bundle`；同一包名重复安装会被拒绝。
+或手工在 profile 的 `package.json` 里加上面的 `link:` 依赖与 bundle 项后重启。换版本时用 link 方式无需 `remove_bundle`；只有换成非 link 安装时才需要先移除。
 
 ## 使用方式（无需记命令）
 

@@ -592,7 +592,7 @@ window.__ModuleLoader__.load({
               : h(
                   'div',
                   { className: 'dtb-list' },
-                  boards.map((board) => h(BoardCard, { key: board.id, board, t, onPreview })),
+                  boards.map((board) => h(BoardCard, { key: board.id, board, t, onPreview: openPreview })),
                 ),
           preview
             ? h(PreviewModal, {
@@ -606,6 +606,53 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** 错误边界：任何渲染异常都在面板内显示原因，避免整片空白。 */
+    class PanelBoundary extends React.Component {
+      constructor(props) {
+        super(props)
+        this.state = { error: null }
+      }
+
+      static getDerivedStateFromError(error) {
+        return { error }
+      }
+
+      componentDidCatch(error) {
+        try {
+          console.error('[dsh-task-board] render error', error)
+        } catch {
+          /* 忽略日志失败 */
+        }
+      }
+
+      render() {
+        const error = this.state.error
+        if (error) {
+          return h(
+            'div',
+            { className: 'dtb-page' },
+            h('style', { dangerouslySetInnerHTML: { __html: CSS } }),
+            h(
+              'div',
+              { className: 'dtb-inner' },
+              h('h1', { style: { margin: '24px 0 8px', fontSize: '18px' } }, '任务看板渲染出错'),
+              h('div', { className: 'dtb-error' }, String((error && error.message) || error)),
+              h(
+                'div',
+                { style: { marginTop: '14px' } },
+                h('button', { className: 'dtb-btn', onClick: () => this.setState({ error: null }) }, '重试'),
+              ),
+            ),
+          )
+        }
+        return this.props.children
+      }
+    }
+
+    function BoardPanelSafe(props) {
+      return h(PanelBoundary, null, h(BoardPanel, props))
+    }
+
     return {
       inject: ['slots', 'locale'],
       apply(ctx) {
@@ -613,7 +660,7 @@ window.__ModuleLoader__.load({
         ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'dsh-task-board: zh dictionary')
         const t = ctx.locale.bind(NS)
         ctx.slots.inject('main', () =>
-          ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS }, BoardPanel),
+          ctx.slots.register({ name: 'main', key: PANEL_ID, locale: NS }, BoardPanelSafe),
         )
         ctx.slots.inject('sidebar.panellist', () =>
           ctx.slots.register(
