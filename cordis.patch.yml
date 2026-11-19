@@ -2,5 +2,5 @@
 # 一行 insert 挂上 Host 半身；浏览器半身由 package.json 的 dsh.client 声明。
 - insert:
     - id: task-board
-      name: '@local/dsh-task-board'
+      name: '@taozi0328/dsh-task-board'
       config: {}
