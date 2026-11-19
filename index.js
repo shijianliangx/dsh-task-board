@@ -366,7 +366,7 @@ export function apply(ctx, config = {}) {
    * 清单留空（等模型后续调用 update/add 填充），保证「需求一出现就可见」。
    * 返回新建的 board，若已存在则复用现有 board。
    */
-  async function ensureAutoBoard(exec) {
+  async function ensureAutoBoard(exec, preStepMessages) {
     const session = exec && exec.agent && exec.agent.session;
     const sessionId = session && typeof session.id === 'string' ? session.id : '';
     const norm = normSid(sessionId);
@@ -380,7 +380,15 @@ export function apply(ctx, config = {}) {
     // 存储可能还在异步恢复中；建板前等它就绪，避免落盘丢失。
     try { if (storeReady) await storeReady; } catch { /* 存储不可用也继续，至少内存可见 */ }
     const captured = await captureSession(exec);
-    const demand = captured.sessionDemand;
+    let demand = captured.sessionDemand;
+    // 新版 agent/pre-step 的 messages 批次是直接的用户输入，作为需求抓取的兜底。
+    if (!demand && Array.isArray(preStepMessages)) {
+      const msgs = preStepMessages
+        .map((m) => textOf(m && (m.content || m.parts)) || (typeof m?.text === 'string' ? m.text : ''))
+        .map((t) => String(t || '').replace(/<system-reminder>[\s\S]*?<\/system-reminder>/g, '').trim())
+        .filter((t) => t && !t.startsWith('/') && !/^Time sampled while preparing turn/i.test(t));
+      if (msgs.length) demand = msgs.slice(-5).join('\n\n---\n\n');
+    }
     if (!demand || !demand.trim()) return null; // 还没有有效用户需求，等下一次事件
     autoBoarded.add(norm);
     const board = {
@@ -418,15 +426,24 @@ export function apply(ctx, config = {}) {
     if (typeof ctx.on !== 'function') return;
     let installed = false;
     let disposeHook = null;
-    const onEvent = (payload) => {
-      if (disposed) return;
-      // agent/pre-step 的 payload 是 agent（有 .session）；兜底事件给的是 session 本身。
-      const exec = payload && payload.session
-        ? { agent: payload }
-        : { agent: { session: payload } };
-      Promise.resolve(ensureAutoBoard(exec)).catch((error) => {
-        logger.warn?.(`dsh-task-board: auto board failed (${error?.message ?? error})`);
-      });
+    // agent/pre-step 是 waterfall 事件：监听器必须把 next() 的返回值原样返回，
+    // 否则 DSH 会把 undefined 当成 PreStepDecision，随后读 decision.kind 抛错。
+    const onEvent = (payload, next) => {
+      const delegate = () => (typeof next === 'function' ? next() : undefined);
+      if (disposed) return delegate();
+      // DSH 新版（2026-11-19 迁移后）payload = { agent, messages, turn, step, ... }，
+      // agent 在 payload.agent 里；老版 payload 直接是 agent。两种都兼容。
+      const agent = payload && payload.agent ? payload.agent : payload;
+      const exec = { agent };
+      try {
+        // messages 是本批次的 UserMessage[]，可作为需求的直接来源（会话事件抓不到时的兜底）。
+        Promise.resolve(ensureAutoBoard(exec, payload && payload.messages)).catch((error) => {
+          logger.warn?.(`dsh-task-board: auto board failed (${error?.message ?? error})`);
+        });
+      } catch (error) {
+        logger.warn?.(`dsh-task-board: auto board threw (${error?.message ?? error})`);
+      }
+      return delegate();
     };
     const install = () => {
       if (installed || disposed) return;
