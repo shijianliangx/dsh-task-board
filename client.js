@@ -6,7 +6,7 @@
  * the writing path is the agent tools, so what you see is what the agent recorded.
  */
 window.__ModuleLoader__.load({
-  id: '@local/dsh-task-board',
+  id: '@taozi0328/dsh-task-board',
   factory(require) {
     const React = require('react')
     const h = React.createElement
