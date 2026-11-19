@@ -18,7 +18,7 @@
   - 处理清单：要处理的事项、要点、负责人；
   - 交付清单：要交付的产物、交付标准。
 - **会话需求自动计入**（v1.1）：建板时插件从当前会话抓取用户原始消息（`exec.agent.session` 的 `user/message`；读不到则从会话投影缓存兜底），存为看板的「会话中的用户需求」单独展示，与智能体整理的 requirement 并列，避免用户原话丢失。
-- **归档自动分列**（v1.1）：插件读取 `~/.dsh/storages/workspace.json` 的 `global.archivedSessionIds`，按看板 sessionId 判定归档。归档任务在面板「归档」标签单独列出，不再计入「进行中」；Markdown 输出带「已归档」标记。归档状态每 4 秒刷新一次。
+- **归档自动分列**（v1.1）：插件通过 DSH 提供的 `dshHomePath` 服务定位 Harness home（拿不到时回退到 `~/.dsh`），读取其 `storages/workspace.json` 里的 `global.archivedSessionIds`，按看板 sessionId 判定归档。归档任务在面板「归档」标签单独列出，不再计入「进行中」；Markdown 输出带「已归档」标记。归档状态每 4 秒刷新一次。
 - **产物点击预览**（v1.2）：面板里的「产物」可点击，弹层预览。URL 直接在新标签打开；图片与 PDF 弹层内直接查看；文本/代码（常见扩展名，≤1MB 超长截断）弹层内查看；目录列出内容可逐层点入。相对路径自动相对「会话工作目录 → config.cwd → 进程目录」解析，路径带说明文字也能识别；找不到（>16MB 过大）或不支持的类型给出明确提示。
 - **实时更新**：开始一项标 `doing`，做完填 `result`（处理结果）与 `artifact`（产物路径/链接）并标 `done`；受阻标 `blocked` 并写原因。
 - **双处展示**：
@@ -44,9 +44,9 @@ dsh-task-board/
 
 ## 安装
 
-### 一行命令安装（推荐，开发者可直接复制）
+### 一行命令安装（推荐）
 
-用 DSH 自带的 `dsh plugin` 命令把本包装进目标 profile（`<包名>` 处已填好本仓库的 GitHub spec）：
+用 DSH 自带的 `dsh plugin` 命令把本包装进目标 profile：
 
 ```bash
 dsh plugin --profile web add github:taozi0328/dsh-task-board
@@ -56,25 +56,24 @@ dsh plugin --profile web add github:taozi0328/dsh-task-board
 - `--profile` 必须写在 `add` **之前**，这是 DSH CLI 的要求。
 - 安装后**重启 DSH**，左侧栏出现「任务看板」即生效。
 
-从本地源码目录安装（改代码后重启即生效，适合开发调试）：
+### 从源码安装（开发调试）
+
+克隆本仓库后用 `link:` 指向你的本地目录，改代码后重启 DSH 即生效：
 
 ```bash
-dsh plugin --profile web add link:D:/Personal/Documents/deepseek-harness/default-workspace/dsh-task-board
+git clone https://github.com/taozi0328/dsh-task-board.git
+dsh plugin --profile web add link:/绝对路径/到/dsh-task-board
 ```
 
-> 说明：`dsh plugin` 本质是把参数转发给 profile 目录里的 pnpm，所以 `add/remove/why` 等 pnpm 子命令都能用。卸载用 `dsh plugin --profile web remove @local/dsh-task-board`。
+> `link:` 后面的路径换成你实际克隆的位置；Windows 上写成 `link:D:/path/to/dsh-task-board` 这样的形式。
 
-### 本机 DSH Desktop 的当前状态
+### 卸载与说明
 
-当前这台机器已用 `link:` 方式装载，本目录就是源码目录，改完重启 DSH 即生效：
+```bash
+dsh plugin --profile web remove @taozi0328/dsh-task-board
+```
 
-- profile 配置在 `F:\DeepSeekHarness\dsh-home\profiles\desktop`：
-  - `package.json` 依赖：`"@local/dsh-task-board": "link:D:/Personal/Documents/deepseek-harness/default-workspace/dsh-task-board"`
-  - `dsh.profile.bundles` 含 `"@local/dsh-task-board"`
-  - `node_modules/@local/dsh-task-board` 是指向本目录的 Windows Junction（与 notes-panel 的 symlink 等价）
-- 因此**开发/修改流程**：直接改本目录下 `index.js` / `client.js`，然后重启 DSH Desktop（client 在启动时装配），刷新页面即可，不需要重新安装、不需要复制文件。
-
-换版本时用 link 方式无需先 `remove`；只有从 link 换成非 link（如 GitHub spec）安装时才需要先移除旧的。也可以在会话里让智能体用 `plugin_manager` 的 `install_bundle`，target 指向本目录。
+> `dsh plugin` 本质是把参数转发给 profile 目录里的 pnpm，所以 `add/remove/why` 等 pnpm 子命令都能用。也可以在会话里让智能体用 `plugin_manager` 的 `install_bundle`，target 指向本仓库目录。从 `link:` 换成 GitHub spec（或反之）时，先 `remove` 再重新安装，避免残留。
 
 ## 使用方式（无需记命令）
 
@@ -113,7 +112,7 @@ dsh plugin --profile web add link:D:/Personal/Documents/deepseek-harness/default
 
 ```yaml
 - id: task-board
-  name: '@local/dsh-task-board'
+  name: '@taozi0328/dsh-task-board'
   config:
     maxBoards: 200     # 最多保留多少张看板，默认 200
     archivePollMs: 4000  # 归档状态刷新间隔（毫秒），默认 4000
