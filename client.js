@@ -20,6 +20,10 @@ window.__ModuleLoader__.load({
       title: 'Task Board',
       subtitle: 'Processing checklist & delivery checklist, updated by the agent as work progresses.',
       refresh: 'Refresh',
+      search: 'Search',
+      searchPlaceholder: 'Search title, requirement, results, artifacts…',
+      noMatch: 'No task boards match your search.',
+      clearSearch: 'Clear search',
       loading: 'Loading…',
       loadFailed: 'Cannot reach the plugin backend',
       retry: 'Retry',
@@ -69,6 +73,10 @@ window.__ModuleLoader__.load({
       title: '任务看板',
       subtitle: '处理清单与交付清单，随任务执行由智能体实时更新。当前进度、处理结果和产物一目了然。',
       refresh: '刷新',
+      search: '搜索',
+      searchPlaceholder: '搜索标题、需求、处理结果、产物…',
+      noMatch: '没有匹配的任务看板。',
+      clearSearch: '清除搜索',
       loading: '加载中…',
       loadFailed: '连不上插件后端',
       retry: '重试',
@@ -127,6 +135,16 @@ window.__ModuleLoader__.load({
       'color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}',
       '.dtb-btn:hover{border-color:var(--dsw-alias-brand-primary)}',
       '.dtb-btn:disabled{opacity:.55;cursor:default}',
+      '.dtb-search{display:flex;align-items:center;gap:8px;width:100%;max-width:520px;border:1px solid var(--dsw-alias-border-l1);',
+      'border-radius:9px;padding:0 10px;background:var(--dsw-alias-bg-layer-1);box-sizing:border-box}',
+      '.dtb-search:focus-within{border-color:var(--dsw-alias-brand-primary)}',
+      '.dtb-search-icon{font-size:13px;color:var(--dsw-alias-label-secondary);flex:none}',
+      '.dtb-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--dsw-alias-label-primary);',
+      'font:inherit;font-size:12px;padding:8px 0}',
+      '.dtb-search input::placeholder{color:var(--dsw-alias-label-secondary);opacity:.8}',
+      '.dtb-search-clear{border:0;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;',
+      'font:inherit;font-size:16px;line-height:1;padding:2px 4px;flex:none}',
+      '.dtb-search-clear:hover{color:var(--dsw-alias-label-primary)}',
       '.dtb-tabs{display:flex;gap:4px;padding:3px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-1);width:fit-content}',
       '.dtb-tab{border:0;border-radius:7px;padding:6px 14px;background:transparent;color:var(--dsw-alias-label-secondary);',
       'font:inherit;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap}',
@@ -324,8 +342,12 @@ window.__ModuleLoader__.load({
       )
     }
 
-    function BoardCard({ board, t, onPreview }) {
-      const [open, setOpen] = useState(true)
+    function BoardCard({ board, t, onPreview, query }) {
+      // v1.4：详情默认收起，点击卡片头再展开；搜索命中时自动展开，方便看到命中的内容。
+      const [open, setOpen] = useState(Boolean(query))
+      useEffect(() => {
+        if (query) setOpen(true)
+      }, [query])
       const previewOf = useCallback(
         (artifactText) => {
           if (onPreview) onPreview(artifactText, board)
@@ -452,6 +474,7 @@ window.__ModuleLoader__.load({
       const [error, setError] = useState('')
       const [busy, setBusy] = useState(false)
       const [tab, setTab] = useState('active')
+      const [query, setQuery] = useState('')
       const [preview, setPreview] = useState(null)
       const aliveRef = useRef(true)
 
@@ -530,11 +553,26 @@ window.__ModuleLoader__.load({
         done: { count: doneCount, empty: t('emptyDone') },
         archived: { count: archivedCount, empty: t('emptyArchived') },
       }
+      // v1.4 模糊搜索：query 按空白拆词，全部命中（忽略大小写、支持子串）才算命中。
+      // 搜索范围：标题、需求、会话原始需求、处理/交付清单的标题/详情/结果/产物/负责人。
+      const q = query.trim().toLowerCase()
+      const searchText = q ? q.split(/\s+/).filter(Boolean) : []
+      const matchesQuery = (b) => {
+        if (!searchText.length) return true
+        const items = [...(b.processing || []), ...(b.delivery || [])]
+        const haystack = [
+          b.title, b.requirement, b.sessionDemand, b.status,
+          ...items.flatMap((it) => [it.title, it.detail, it.result, it.artifact, it.owner]),
+        ].filter(Boolean).join('\n').toLowerCase()
+        return searchText.every((word) => haystack.includes(word))
+      }
       const boards = allBoards.filter((b) => {
-        if (tab === 'archived') return Boolean(b.archived)
-        if (b.archived) return false
-        return tab === 'done' ? b.status === 'done' : b.status !== 'done'
+        if (tab === 'archived') { if (!b.archived) return false }
+        else if (b.archived) return false
+        else if (tab === 'done' ? b.status !== 'done' : b.status === 'done') return false
+        return matchesQuery(b)
       })
+      const searching = searchText.length > 0
 
       return h(
         'div',
@@ -565,6 +603,27 @@ window.__ModuleLoader__.load({
           ),
           h(
             'div',
+            { className: 'dtb-search' },
+            h('span', { className: 'dtb-search-icon', 'aria-hidden': true }, '⌕'),
+            h('input', {
+              type: 'search',
+              value: query,
+              placeholder: t('searchPlaceholder'),
+              'aria-label': t('search'),
+              onChange: (e) => setQuery(e.target.value ? e.target.value : ''),
+            }),
+            query
+              ? h('button', {
+                  type: 'button',
+                  className: 'dtb-search-clear',
+                  title: t('clearSearch'),
+                  'aria-label': t('clearSearch'),
+                  onClick: () => setQuery(''),
+                }, '×')
+              : null,
+          ),
+          h(
+            'div',
             { className: 'dtb-tabs' },
             ['active', 'done', 'archived'].map((key) =>
               h(
@@ -588,11 +647,11 @@ window.__ModuleLoader__.load({
                 h('button', { className: 'dtb-btn', onClick: manualRefresh }, t('retry')),
               )
             : !boards.length
-              ? h('div', { className: 'dtb-empty' }, state ? tabMeta[tab].empty : t('loading'))
+              ? h('div', { className: 'dtb-empty' }, searching ? t('noMatch') : (state ? tabMeta[tab].empty : t('loading')))
               : h(
                   'div',
                   { className: 'dtb-list' },
-                  boards.map((board) => h(BoardCard, { key: board.id, board, t, onPreview: openPreview })),
+                  boards.map((board) => h(BoardCard, { key: board.id, board, t, onPreview: openPreview, query })),
                 ),
           preview
             ? h(PreviewModal, {
